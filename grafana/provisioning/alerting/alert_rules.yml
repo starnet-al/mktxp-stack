@@ -178,6 +178,92 @@ groups:
           severity: warning
         isPaused: false
 
+      - uid: mikrotik-high-cpu-temp
+        title: "Router High CPU Temperature"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_cpu_temperature"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [70]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High CPU temperature on {{ $labels.routerboard_name }}"
+          description: "CPU temperature on {{ $labels.routerboard_name }} has been above 70°C for more than 5 minutes (current: {{ $values.B }}°C)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-high-board-temp
+        title: "Router High Board Temperature"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_routerboard_temperature"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [70]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High board temperature on {{ $labels.routerboard_name }}"
+          description: "Board temperature on {{ $labels.routerboard_name }} has been above 70°C for more than 5 minutes (current: {{ $values.B }}°C)."
+        labels:
+          severity: warning
+        isPaused: false
+
       - uid: mikrotik-auth-failure
         title: "Router Authentication Failures"
         condition: B
