@@ -1,0 +1,3 @@
+apiVersion: 1
+# Contact points are configured via scripts/setup-telegram.sh to avoid
+# YAML→JSON type coercion issues with negative integer chat IDs.

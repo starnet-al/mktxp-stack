@@ -1,0 +1,222 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Mikrotik Alerts
+    folder: Mikrotik
+    interval: 1m
+    rules:
+
+      - uid: mikrotik-exporter-down
+        title: "MKTXP Exporter Unreachable"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "up{job=\"mktxp\"}"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: Alerting
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "MKTXP exporter is down"
+          description: "Prometheus cannot scrape the MKTXP exporter. All router metrics are unavailable."
+        labels:
+          severity: critical
+        isPaused: false
+
+      - uid: mikrotik-high-cpu
+        title: "Router High CPU"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_cpu_load"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [80]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High CPU on {{ $labels.routerboard_name }}"
+          description: "CPU load on {{ $labels.routerboard_name }} has been above 80% for more than 5 minutes (current: {{ $values.B }}%)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-high-memory
+        title: "Router High Memory Usage"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "(1 - mktxp_system_free_memory / mktxp_system_total_memory) * 100"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [90]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High memory on {{ $labels.routerboard_name }}"
+          description: "Memory usage on {{ $labels.routerboard_name }} has been above 90% for more than 5 minutes (current: {{ $values.B }}%)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-interface-down
+        title: "Router Interface Down"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_interface_running unless on(routerboard_name, name) (mktxp_interface_disabled == 1)"
+              instant: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 2m
+        annotations:
+          summary: "Interface down on {{ $labels.routerboard_name }}"
+          description: "Interface {{ $labels.name }} on {{ $labels.routerboard_name }} has been down for more than 2 minutes."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-auth-failure
+        title: "Router Authentication Failures"
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              expr: "count_over_time({job=\"syslog\"} |~ \"(?i)(login failure|authentication failed|invalid password|invalid user)\" [5m])"
+              queryType: range
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: OK
+        for: 0s
+        annotations:
+          summary: "Auth failures on {{ $labels.routerboard }}"
+          description: "More than 3 authentication failure log entries detected on {{ $labels.routerboard }} in the last 5 minutes."
+        labels:
+          severity: warning
+        isPaused: false
