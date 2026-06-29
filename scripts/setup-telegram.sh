@@ -34,7 +34,7 @@ import json, os
 
 message = (
     "{{ if eq .Status \"firing\" }}🔴 FIRING{{ else }}✅ RESOLVED{{ end }}: "
-    "{{ index .CommonLabels \"rulename\" }}\n"
+    "{{ index .CommonLabels \"alertname\" }}\n"
     "\n"
     "{{ range .Alerts -}}"
     "{{ .Annotations.summary }}\n"
