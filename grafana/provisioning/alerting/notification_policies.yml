@@ -1,0 +1,2 @@
+apiVersion: 1
+# Notification policy is configured via scripts/setup-telegram.sh

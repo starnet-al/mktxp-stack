@@ -1,0 +1,382 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Mikrotik Alerts
+    folder: Mikrotik
+    interval: 1m
+    rules:
+
+      # NOTE: All rules use the reduce -> threshold expression pipeline
+      # (condition: C) rather than classic_conditions. classic_conditions
+      # collapses every matching series into ONE label-less alert, which made
+      # notifications render "[no value]" for routerboard_name and the metric
+      # value. reduce+threshold preserves per-series labels and fires one alert
+      # per device. Read the firing value with {{ $values.B.Value }}.
+
+      - uid: mikrotik-exporter-down
+        title: "MKTXP Exporter Unreachable"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "up{job=\"mktxp\"}"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+        noDataState: Alerting
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "MKTXP exporter is down"
+          description: "Prometheus cannot scrape the MKTXP exporter. All router metrics are unavailable."
+        labels:
+          severity: critical
+        isPaused: false
+
+      - uid: mikrotik-high-cpu
+        title: "Router High CPU"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_cpu_load"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [80]
+                    type: gt
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High CPU on {{ $labels.routerboard_name }}"
+          description: "CPU load on {{ $labels.routerboard_name }} has been above 80% for more than 5 minutes (current: {{ printf \"%.0f\" $values.B.Value }}%)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-high-memory
+        title: "Router High Memory Usage"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "(1 - mktxp_system_free_memory / mktxp_system_total_memory) * 100"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [90]
+                    type: gt
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High memory on {{ $labels.routerboard_name }}"
+          description: "Memory usage on {{ $labels.routerboard_name }} has been above 90% for more than 5 minutes (current: {{ printf \"%.1f\" $values.B.Value }}%)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-interface-down
+        title: "Router Interface Down"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              # Only alert on real, enabled interfaces that were actually up in
+              # the last 6h (a genuine down-transition) and exclude dynamic
+              # per-customer pppoe sessions. This avoids flooding on idle
+              # vlans/tunnels/test interfaces that are simply never running.
+              expr: "mktxp_interface_running{name!~\"<pppoe-.*>\"} unless on(routerboard_name, name) (mktxp_interface_disabled == 1) and on(routerboard_name, name) (max_over_time(mktxp_interface_running[6h]) == 1)"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+        noDataState: OK
+        execErrState: OK
+        for: 2m
+        annotations:
+          summary: "Interface down on {{ $labels.routerboard_name }}"
+          description: "Interface {{ $labels.name }} on {{ $labels.routerboard_name }} has been down for more than 2 minutes."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-high-cpu-temp
+        title: "Router High CPU Temperature"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_cpu_temperature"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [70]
+                    type: gt
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High CPU temperature on {{ $labels.routerboard_name }}"
+          description: "CPU temperature on {{ $labels.routerboard_name }} has been above 70°C for more than 5 minutes (current: {{ printf \"%.0f\" $values.B.Value }}°C)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-high-board-temp
+        title: "Router High Board Temperature"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: "mktxp_system_routerboard_temperature"
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [70]
+                    type: gt
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "High board temperature on {{ $labels.routerboard_name }}"
+          description: "Board temperature on {{ $labels.routerboard_name }} has been above 70°C for more than 5 minutes (current: {{ printf \"%.0f\" $values.B.Value }}°C)."
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: mikrotik-auth-failure
+        title: "Router Authentication Failures"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              expr: "count_over_time({job=\"syslog\"} |~ \"(?i)(login failure|authentication failed|invalid password|invalid user)\" [5m])"
+              queryType: range
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+        noDataState: OK
+        execErrState: OK
+        for: 0s
+        annotations:
+          summary: "Auth failures on {{ $labels.routerboard }}"
+          description: "{{ printf \"%.0f\" $values.B.Value }} authentication failure log entries detected on {{ $labels.routerboard }} in the last 5 minutes."
+        labels:
+          severity: warning
+        isPaused: false
